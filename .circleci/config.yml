@@ -1,0 +1,49 @@
+version: 2.1
+description: An orb for programmatic release, based on your gitflow
+
+executors:
+  github:
+    docker:
+      - image: cibuilds/github:0.10
+commands:
+  execute_hotfix:
+    steps:
+      - run: |
+          git config --global user.email "circleci@sandbox.fr"
+          git config --global user.name "Circle CI Hotfix"
+          lastRelease=$(git describe --tags $(git rev-list --tags --max-count=1))
+          releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
+          if [ $(echo $releaseBranch | grep -q $lastRelease) ]; then echo "error release $lastRelease" && exit 1; fi
+          currentBranch=$(git rev-parse --abbrev-ref HEAD)
+          newVersion=$(echo $lastRelease | sed "s/$(echo $lastRelease | cut -d"." -f3)$/$(expr $(echo $lastRelease | cut -d"." -f3) + 1)/")
+          git checkout master && git merge --no-ff --no-edit $currentBranch && git tag $newVersion
+          git checkout $releaseBranch && git merge --no-ff --no-edit $currentBranch
+          git checkout develop && git pull --rebase && git merge --no-ff --no-edit $currentBranch
+          git branch -D $currentBranch
+          git push --all && git push origin :$currentBranch && git push --tags
+  execute_release:
+    steps:
+      - run: |
+          git config --global user.email "circleci@sandbox.fr"
+          git config --global user.name "Circle CI Release"
+          releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
+          version=$(echo $releaseBranch | sed -e "s/release\///g")
+          currentBranch=$(git rev-parse --abbrev-ref HEAD)
+          git checkout master && git merge --no-ff --no-edit $currentBranch && git tag $version
+          newVersion=$(echo $version | sed -E "s/^([0-9]+\.)$(echo $version | cut -d"." -f2)[.0-9]+/\1$(expr $(echo $version | cut -d"." -f2) + 1).0/")
+          git checkout develop && git pull --rebase && git merge --no-ff --no-edit $currentBranch
+          git checkout -b release/$newVersion
+          git branch -D $currentBranch
+          git push --all && git push origin :$currentBranch && git push --tags
+jobs:
+  create_hotfix_tag:
+    executor: github
+    steps:
+      - checkout
+      - execute_hotfix
+      
+  create_release_tag:
+    executor: github
+    steps:
+      - checkout
+      - execute_release
