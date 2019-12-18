@@ -5,12 +5,31 @@ executors:
   github:
     docker:
       - image: cibuilds/github:0.10
+
 commands:
-  execute_hotfix:
+  git_init:
+    parameters:
+      email:
+        type: string
+      name:
+        type: string
     steps:
       - run: |
-          git config --global user.email "circleci@sandbox.fr"
-          git config --global user.name "Circle CI Hotfix"
+          git config --global user.email "<< parameters.email >>"
+          git config --global user.name "<< parameters.name >>"
+  execute_hotfix:
+    parameters:
+      email:
+        type: string
+        default: circleci@sandbox.fr
+      name:
+        type: string
+        default: Circle CI Hotfix
+    steps:
+      - git_init:
+          email: << parameters.email >>
+          name: << parameters.name >>
+      - run: |
           lastRelease=$(git describe --tags $(git rev-list --tags --max-count=1))
           releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
           if [ $(echo $releaseBranch | grep -q $lastRelease) ]; then echo "error release $lastRelease" && exit 1; fi
@@ -22,10 +41,18 @@ commands:
           git branch -D $currentBranch
           git push --all && git push origin :$currentBranch && git push --tags
   execute_release:
+    parameters:
+      email:
+        type: string
+        default: circleci@sandbox.fr
+      name:
+        type: string
+        default: Circle CI Release
     steps:
+      - git_init:
+          email: << parameters.email >>
+          name: << parameters.name >>
       - run: |
-          git config --global user.email "circleci@sandbox.fr"
-          git config --global user.name "Circle CI Release"
           releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
           version=$(echo $releaseBranch | sed -e "s/release\///g")
           currentBranch=$(git rev-parse --abbrev-ref HEAD)
@@ -35,13 +62,15 @@ commands:
           git checkout -b release/$newVersion
           git branch -D $currentBranch
           git push --all && git push origin :$currentBranch && git push --tags
+
+
 jobs:
   create_hotfix_tag:
     executor: github
     steps:
       - checkout
       - execute_hotfix
-      
+
   create_release_tag:
     executor: github
     steps:
