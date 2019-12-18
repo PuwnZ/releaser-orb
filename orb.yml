@@ -7,7 +7,7 @@ executors:
       - image: cibuilds/github:0.10
 
 commands:
-  git_init:
+  before:
     parameters:
       email:
         type: string
@@ -17,61 +17,63 @@ commands:
       - run: |
           git config --global user.email "<< parameters.email >>"
           git config --global user.name "<< parameters.username >>"
-  execute_hotfix:
+          echo CURRENT_VERSION_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) >> .env
+          echo MINOR_BRANCH=$(git branch --all | grep remotes/origin/release | sed -e "s/[ ]*remotes\/origin\///g") >> .env
+          echo CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD) >> .env
+  after:
+    steps:
+      - run: |
+          source .env
+          git checkout master && git merge --no-ff --no-edit $CURRENT_BRANCH && git tag $NEW_VERSION_TAG
+          git checkout develop && git pull --rebase && git merge --no-ff --no-edit $CURRENT_BRANCH
+          git branch -D $CURRENT_BRANCH
+          git push --all && git push origin :$CURRENT_BRANCH && git push --tags
+  execute_patch:
     parameters:
       email:
         type: string
         default: circleci@sandbox.fr
       username:
         type: string
-        default: 'Circle CI Hotfix'
+        default: ${CIRCLE_USERNAME}
     steps:
-      - git_init:
+      - checkout
+      - before:
           email: << parameters.email >>
           username: << parameters.username >>
       - run: |
-          lastRelease=$(git describe --tags $(git rev-list --tags --max-count=1))
-          if [ $(echo $releaseBranch | grep -q $lastRelease) ]; then echo "error release $lastRelease" && exit 1; fi
-          currentBranch=$(git rev-parse --abbrev-ref HEAD)
-          newVersion=$(echo $lastRelease | sed "s/$(echo $lastRelease | cut -d"." -f3)$/$(expr $(echo $lastRelease | cut -d"." -f3) + 1)/")
-          git checkout master && git merge --no-ff --no-edit $currentBranch && git tag $newVersion
-          git checkout $releaseBranch && git merge --no-ff --no-edit $currentBranch
-          git checkout develop && git pull --rebase && git merge --no-ff --no-edit $currentBranch
-          git branch -D $currentBranch
-          git push --all && git push origin :$currentBranch && git push --tags
-  execute_release:
+          source .env
+          echo NEW_VERSION_TAG=$(echo $CURRENT_VERSION_TAG | sed "s/$(echo $CURRENT_VERSION_TAG | cut -d"." -f3)$/$(expr $(echo $CURRENT_VERSION_TAG | cut -d"." -f3) + 1)/") >> .env
+          git checkout $MINOR_BRANCH && git merge --no-ff --no-edit $CURRENT_BRANCH
+      - after
+  execute_minor:
     parameters:
       email:
         type: string
         default: circleci@sandbox.fr
       username:
         type: string
-        default: 'Circle CI Release'
+        default: ${CIRCLE_USERNAME}
     steps:
-      - git_init:
+      - checkout
+      - before:
           email: << parameters.email >>
           username: << parameters.username >>
       - run: |
-          releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
-          version=$(echo $releaseBranch | sed -e "s/release\///g")
-          currentBranch=$(git rev-parse --abbrev-ref HEAD)
-          git checkout master && git merge --no-ff --no-edit $currentBranch && git tag $version
-          newVersion=$(echo $version | sed -E "s/^([0-9]+\.)$(echo $version | cut -d"." -f2)[.0-9]+/\1$(expr $(echo $version | cut -d"." -f2) + 1).0/")
-          git checkout develop && git pull --rebase && git merge --no-ff --no-edit $currentBranch
-          git checkout -b release/$newVersion
-          git branch -D $currentBranch
-          git push --all && git push origin :$currentBranch && git push --tags
-
+          source .env
+          version=$(echo $MINOR_BRANCH | sed -e "s/release\///g")
+          echo NEW_VERSION_TAG=$(echo $version) >> .env
+          NEW_VERSION_TAG=$(echo $version | sed -E "s/^([0-9]+\.)$(echo $version | cut -d"." -f2)[.0-9]+/\1$(expr $(echo $version | cut -d"." -f2) + 1).0/")
+          git checkout develop && git checkout -b release/$NEW_VERSION_TAG
+      - after
 
 jobs:
-  create_hotfix_tag:
+  create_patch_tag:
     executor: github
     steps:
-      - checkout
-      - execute_hotfix
+      - execute_patch
 
-  create_release_tag:
+  create_minor_tag:
     executor: github
     steps:
-      - checkout
-      - execute_release
+      - execute_minor
