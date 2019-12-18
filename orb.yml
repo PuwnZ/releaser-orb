@@ -18,7 +18,7 @@ commands:
           git config --global user.email "<< parameters.email >>"
           git config --global user.name "<< parameters.username >>"
           echo CURRENT_VERSION_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) >> .env
-          echo MINOR_BRANCH=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g") >> .env
+          echo MINOR_BRANCH=$(git branch --all | grep remotes/origin/release | sed -e "s/[ ]*remotes\/origin\///g") >> .env
           echo CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD) >> .env
   after:
     steps:
