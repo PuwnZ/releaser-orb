@@ -11,27 +11,26 @@ commands:
     parameters:
       email:
         type: string
-      name:
+      username:
         type: string
     steps:
       - run: |
           git config --global user.email "<< parameters.email >>"
-          git config --global user.name "<< parameters.name >>"
+          git config --global user.name "<< parameters.username >>"
   execute_hotfix:
     parameters:
       email:
         type: string
         default: circleci@sandbox.fr
-      name:
+      username:
         type: string
-        default: Circle CI Hotfix
+        default: 'Circle CI Hotfix'
     steps:
       - git_init:
           email: << parameters.email >>
-          name: << parameters.name >>
+          username: << parameters.username >>
       - run: |
           lastRelease=$(git describe --tags $(git rev-list --tags --max-count=1))
-          releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
           if [ $(echo $releaseBranch | grep -q $lastRelease) ]; then echo "error release $lastRelease" && exit 1; fi
           currentBranch=$(git rev-parse --abbrev-ref HEAD)
           newVersion=$(echo $lastRelease | sed "s/$(echo $lastRelease | cut -d"." -f3)$/$(expr $(echo $lastRelease | cut -d"." -f3) + 1)/")
@@ -45,13 +44,13 @@ commands:
       email:
         type: string
         default: circleci@sandbox.fr
-      name:
+      username:
         type: string
-        default: Circle CI Release
+        default: 'Circle CI Release'
     steps:
       - git_init:
           email: << parameters.email >>
-          name: << parameters.name >>
+          username: << parameters.username >>
       - run: |
           releaseBranch=$(git branch --all | grep remotes/origin/release | sed -e "s/remotes\/origin\///g")
           version=$(echo $releaseBranch | sed -e "s/release\///g")
