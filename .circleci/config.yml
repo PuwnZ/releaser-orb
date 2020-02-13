@@ -7,11 +7,12 @@ parameters:
     type: string
     default: "0.0.3"
 workflows:
-  lint_pack-validate_publish-dev:
+  lint-validate_publish-dev:
     jobs:
       - orb-tools/lint
       - orb-tools/publish-dev:
           context: dev
+          checkout: true
           orb-name: puwnz/releaser
           orb-path: ./orb.yml
           requires:
