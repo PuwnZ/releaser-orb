@@ -13,6 +13,6 @@ workflows:
       - orb-tools/publish-dev:
           context: dev
           orb-name: puwnz/releaser
-          orb-path: orb.yml
+          orb-path: ./orb.yml
           requires:
             - orb-tools/lint
