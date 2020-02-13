@@ -8,7 +8,6 @@ parameters:
     default: "0.0.3"
 workflows:
   lint_pack-validate_publish-dev:
-    unless: << pipeline.parameters.run-integration-tests >>
     jobs:
       - orb-tools/lint
       - orb-tools/publish-dev:
