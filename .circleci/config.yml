@@ -1,0 +1,19 @@
+version: 2.1
+orbs:
+  orb-tools: circleci/orb-tools@9.0.0
+  releaser: puwnz/releaser@<<pipeline.parameters.dev-orb-version>>
+parameters:
+  dev-orb-version:
+    type: string
+    default: "0.0.3"
+workflows:
+  lint-validate_publish-dev:
+    jobs:
+      - orb-tools/lint
+      - orb-tools/publish-dev:
+          context: dev
+          checkout: true
+          orb-name: puwnz/releaser
+          orb-path: ./orb.yml
+          requires:
+            - orb-tools/lint
